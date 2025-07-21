@@ -28,7 +28,8 @@ pipeline {
                     node --version
                     npm --version
                     echo "BUILDING WITH VERSION: $REACT_APP_VERSION"
-                    export REACT_APP_VERSION=$REACT_APP_VERSION
+                    npm ci
+                    REACT_APP_VERSION=$REACT_APP_VERSION npm run build
                     npm ci
                     npm run build
                     ls -la
