@@ -15,7 +15,7 @@ function App() {
           Learn Jenkins on Udemy
         </a>
       </header>
-      <p>Application version: ${process.env.REACT_APP_VERSION || "1.0.0"}</p>
+      <p>Application version:{process.env.REACT_APP_VERSION}</p>
     </div>
   );
 }
