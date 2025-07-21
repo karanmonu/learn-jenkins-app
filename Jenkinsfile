@@ -4,7 +4,6 @@ pipeline {
     environment {
         NETLIFY_SITE_ID = '446782d0-a28a-461b-8276-49bf24d90fa9'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-        CI_ENVIRONMENT_URL = 'https://boisterous-tapioca-85ca92.netlify.app'
     }
 
     stages {
@@ -106,6 +105,11 @@ pipeline {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                             reuseNode true
+                        }
+
+                        environment 
+                        {
+                            CI_ENVIRONMENT_URL = 'https://boisterous-tapioca-85ca92.netlify.app'
                         }
                     }
                     steps {
