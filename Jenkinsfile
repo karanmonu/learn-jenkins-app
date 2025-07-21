@@ -24,10 +24,49 @@ pipeline {
                     node_modules/.bin/netlify --version
                     echo "Deploying to stage. Site ID: $NETLIFY_SITE_ID"
                     node_modules/.bin/netlify deploy --dir=build --json > deploy-output.json
-                    node_modules/.bin/node-jq -r '.deploy_url' deploy_output.json
                 '''
+
+                script
+                {
+                    env.STAGING_URL = sh(script: "node_modules/.bin/node-jq -r '.deploy_url' deploy_output.json", returnStdout: true)
                 }
-            }
+                }
+                }
+
+            stage('Staging E2E') {
+                    agent {
+                        docker {
+                            image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                            reuseNode true
+                        }
+                    }
+                        environment 
+                        {
+                            CI_ENVIRONMENT_URL = "${env.STAGING_URL}"
+                        }
+
+                    steps {
+                        sh '''
+                            npx playwright test --reporter=html
+                        '''
+                    }
+                    post {
+                        always {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: false,
+                                icon: '',
+                                keepAll: false,
+                                reportDir: 'playwright-report',
+                                reportFiles: 'index.html',
+                                reportName: 'Staging HTML Report',
+                                reportTitles: '',
+                                useWrapperFileDirectly: true
+                            ])
+                        }
+                    }
+                }
+
 
             stage('approval')
             {
@@ -90,7 +129,7 @@ pipeline {
                                 keepAll: false,
                                 reportDir: 'playwright-report',
                                 reportFiles: 'index.html',
-                                reportName: 'Playwright HTML Report',
+                                reportName: 'Prod HTML Report',
                                 reportTitles: '',
                                 useWrapperFileDirectly: true
                             ])
