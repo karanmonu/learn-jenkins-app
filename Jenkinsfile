@@ -4,11 +4,10 @@ pipeline {
     environment {
         NETLIFY_SITE_ID = '446782d0-a28a-461b-8276-49bf24d90fa9'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-        REACT_APP_VERSION = "1.2.3"
+        REACT_APP_VERSION = "1.0.$BUILD_ID"
     }
 
     stages {
-
         stage('Docker') {
             steps {
                 sh 'docker build -t my-playwright .'
@@ -27,9 +26,6 @@ pipeline {
                     ls -la
                     node --version
                     npm --version
-                    echo "BUILDING WITH VERSION: $REACT_APP_VERSION"
-                    npm ci
-                    REACT_APP_VERSION=$REACT_APP_VERSION npm run build
                     npm ci
                     npm run build
                     ls -la
