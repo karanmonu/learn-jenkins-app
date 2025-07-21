@@ -27,6 +27,8 @@ pipeline {
                     ls -la
                     node --version
                     npm --version
+                    echo "BUILDING WITH VERSION: $REACT_APP_VERSION"
+                    export REACT_APP_VERSION=$REACT_APP_VERSION
                     npm ci
                     npm run build
                     ls -la
@@ -60,15 +62,14 @@ pipeline {
                 stage('E2E') {
                     agent {
                         docker {
-                            image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                            image 'my-playwright'
                             reuseNode true
                         }
                     }
 
                     steps {
                         sh '''
-                            npm install serve
-                            node_modules/.bin/serve -s build &
+                            serve -s build &
                             sleep 10
                             npx playwright test  --reporter=html
                         '''
