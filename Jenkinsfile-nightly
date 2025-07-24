@@ -4,9 +4,16 @@ pipeline {
     stages {
 
         stage('Build Docker images') {
+            agent {
+                docker {
+                    image 'docker:latest'
+                    reuseNode true
+                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
-                sh 'docker build -f ci/Dockerfile-playwright -t my-playwright .'
-                sh 'docker build -f ci/Dockerfile-aws-cli -t my-aws-cli .'
+                sh 'docker build -f ci/Dockerfile-playwright -t my-playwright:latest .'
+                sh 'docker build -f ci/Dockerfile-aws-cli -t my-aws-cli:latest .'
             }
         }
     }
