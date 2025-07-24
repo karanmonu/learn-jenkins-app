@@ -14,6 +14,22 @@ pipeline {
 
     stages {
 
+ stage('Build Custom Docker Images') 
+ { 
+            agent {
+                docker {
+                    image 'docker:latest'
+                    reuseNode true
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
+            steps {
+                sh 'docker build -f ci/Dockerfile-playwright -t my-playwright .' 
+                sh 'docker build -f ci/Dockerfile-aws-cli -t my-aws-cli .'   
+            }
+        }
+
+
         stage('Build') {
             agent {
                 docker {
