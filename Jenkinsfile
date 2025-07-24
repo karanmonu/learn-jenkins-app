@@ -37,16 +37,18 @@ pipeline {
         stage('Built Docker Image') {
             agent none
             steps {
-                docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
-                    docker.image("${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest").inside('-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""') {
-                        sh '''
-                            # Build the image with two tags at once: the specific version and 'latest'
-                            docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION -t $AWS_DOCKER_REGISTRY/$APP_NAME:latest .
-                            
-                            # Push both tags to the registry
-                            docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
-                            docker push $AWS_DOCKER_REGISTRY/$APP_NAME:latest
-                        '''
+                script {
+                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                        docker.image("${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest").inside('-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""') {
+                            sh '''
+                                # Build the image with two tags at once: the specific version and 'latest'
+                                docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION -t $AWS_DOCKER_REGISTRY/$APP_NAME:latest .
+                                
+                                # Push both tags to the registry
+                                docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
+                                docker push $AWS_DOCKER_REGISTRY/$APP_NAME:latest
+                            '''
+                        }
                     }
                 }
             }
@@ -55,14 +57,16 @@ pipeline {
         stage('Deploy to AWS') {
             agent none
             steps {
-                docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
-                    docker.image("${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest").inside('-u root --entrypoint=""') {
-                        sh '''
-                            aws --version
-                            LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
-                            aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION
-                            aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE
-                        '''
+                script {
+                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                        docker.image("${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest").inside('-u root --entrypoint=""') {
+                            sh '''
+                                aws --version
+                                LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
+                                aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION
+                                aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE
+                            '''
+                        }
                     }
                 }
             }
@@ -90,13 +94,15 @@ pipeline {
                 stage('E2E') {
                     agent none
                     steps {
-                        docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
-                            docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
-                                sh '''
-                                    serve -s build &
-                                    sleep 10
-                                    npx playwright test --reporter=html
-                                '''
+                        script {
+                            docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                                docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
+                                    sh '''
+                                        serve -s build &
+                                        sleep 10
+                                        npx playwright test --reporter=html
+                                    '''
+                                }
                             }
                         }
                     }
@@ -112,17 +118,19 @@ pipeline {
         stage('Deploy staging') {
             agent none
             steps {
-                docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
-                    docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
-                        sh '''
-                            netlify --version
-                            echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
-                            netlify status
-                            netlify deploy --dir=build --json > deploy-output.json
-                            CI_ENVIRONMENT_URL=$(jq -r '.deploy_url' deploy-output.json)
-                            echo "✅ Staging deployed to: $CI_ENVIRONMENT_URL"
-                            CI_ENVIRONMENT_URL="$CI_ENVIRONMENT_URL" npx playwright test --reporter=html
-                        '''
+                script {
+                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                        docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
+                            sh '''
+                                netlify --version
+                                echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
+                                netlify status
+                                netlify deploy --dir=build --json > deploy-output.json
+                                CI_ENVIRONMENT_URL=$(jq -r '.deploy_url' deploy-output.json)
+                                echo "✅ Staging deployed to: $CI_ENVIRONMENT_URL"
+                                CI_ENVIRONMENT_URL="$CI_ENVIRONMENT_URL" npx playwright test --reporter=html
+                            '''
+                        }
                     }
                 }
             }
@@ -136,17 +144,19 @@ pipeline {
         stage('Deploy prod') {
             agent none
             steps {
-                docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
-                    docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
-                        sh '''
-                            node --version
-                            netlify --version
-                            echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
-                            netlify deploy --dir=build --prod --json > deploy-output.json
-                            CI_ENVIRONMENT_URL=$(jq -r '.deploy_url' deploy-output.json)
-                            echo "✅ Prod deployed to: $CI_ENVIRONMENT_URL"
-                            CI_ENVIRONMENT_URL="$CI_ENVIRONMENT_URL" npx playwright test --reporter=html
-                        '''
+                script {
+                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                        docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
+                            sh '''
+                                node --version
+                                netlify --version
+                                echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                                netlify deploy --dir=build --prod --json > deploy-output.json
+                                CI_ENVIRONMENT_URL=$(jq -r '.deploy_url' deploy-output.json)
+                                echo "✅ Prod deployed to: $CI_ENVIRONMENT_URL"
+                                CI_ENVIRONMENT_URL="$CI_ENVIRONMENT_URL" npx playwright test --reporter=html
+                            '''
+                        }
                     }
                 }
             }
