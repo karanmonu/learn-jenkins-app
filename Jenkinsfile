@@ -38,7 +38,7 @@ pipeline {
             agent none
             steps {
                 script {
-                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                    docker.withRegistry(url: "https://${env.AWS_DOCKER_REGISTRY}", credentialsId: 'my-aws') {
                         docker.image("${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest").inside('-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""') {
                             sh '''
                                 # Build the image with two tags at once: the specific version and 'latest'
@@ -58,7 +58,7 @@ pipeline {
             agent none
             steps {
                 script {
-                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                    docker.withRegistry(url: "https://${env.AWS_DOCKER_REGISTRY}", credentialsId: 'my-aws') {
                         docker.image("${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest").inside('-u root --entrypoint=""') {
                             sh '''
                                 aws --version
@@ -95,7 +95,7 @@ pipeline {
                     agent none
                     steps {
                         script {
-                            docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                            docker.withRegistry(url: "https://${env.AWS_DOCKER_REGISTRY}", credentialsId: 'my-aws') {
                                 docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
                                     sh '''
                                         serve -s build &
@@ -119,7 +119,7 @@ pipeline {
             agent none
             steps {
                 script {
-                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                    docker.withRegistry(url: "https://${env.AWS_DOCKER_REGISTRY}", credentialsId: 'my-aws') {
                         docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
                             sh '''
                                 netlify --version
@@ -145,7 +145,7 @@ pipeline {
             agent none
             steps {
                 script {
-                    docker.withRegistry("https://${env.AWS_DOCKER_REGISTRY}", "ecr:ap-south-1:my-aws") {
+                    docker.withRegistry(url: "https://${env.AWS_DOCKER_REGISTRY}", credentialsId: 'my-aws') {
                         docker.image("${env.AWS_DOCKER_REGISTRY}/my-playwright:latest").inside {
                             sh '''
                                 node --version
