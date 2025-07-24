@@ -34,62 +34,50 @@ pipeline {
             }
         }
 
-       stage('Built Docker Image') 
-       {
-        agent 
-        {
-            docker 
-            {
-            image 'my-aws-cli'
-            reuseNode true
-            args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
+        stage('Built Docker Image') {
+            agent {
+                docker {
+                    image 'my-aws-cli'
+                    reuseNode true
+                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
+                }
+            }
+
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh '''
+                        docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION .
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                        docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
+                    '''
+                }
             }
         }
 
-        steps 
-            {
-                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) 
-                 {
-                 sh '''
-                    docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION .
-                    aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
-                    docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
-                    '''
+        stage('Deploy to AWS') {
+            agent {
+                docker {
+                    image 'my-aws-cli'
+                    reuseNode true
+                    args '-u root --entrypoint=""'
+                }
             }
-            }   
 
-        stage('Deploy to AWS')
-            {
-                agent
-                {
-                    docker
-                    {
-                        image 'my-aws-cli'
-                        reuseNode true
-                        args '-u root --entrypoint=""'
-                    }
-                }
+            environment {
+                AWS_S3_BUCKET = 'learn-jenkins-20250723'
+            }
 
-                environment 
-                {
-                    AWS_S3_BUCKET = 'learn-jenkins-20250723'
-                }
-
-                steps
-                {
-
-                    withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) 
-                    {
-                    sh  '''
-                    aws --version
-                    LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
-                    aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION
-                    aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh '''
+                        aws --version
+                        LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
+                        aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION
+                        aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE
                     '''
-                    }
                 }
-         }
-
+            }
+        }
 
         stage('Tests') {
             parallel {
@@ -103,7 +91,6 @@ pipeline {
 
                     steps {
                         sh '''
-                            #test -f build/index.html
                             npm test
                         '''
                     }
@@ -126,7 +113,7 @@ pipeline {
                         sh '''
                             serve -s build &
                             sleep 10
-                            npx playwright test  --reporter=html
+                            npx playwright test --reporter=html
                         '''
                     }
 
