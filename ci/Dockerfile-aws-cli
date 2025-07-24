@@ -1,20 +1,3 @@
-FROM amazonlinux:2023
-
-RUN yum update -y && \
-    yum install -y \
-      jq \
-      unzip \
-      curl \
-      sudo \
-      docker \
-      shadow-utils && \
-    yum clean all
-
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install && \
-    rm -rf awscliv2.zip aws
-
-ENV PATH="/usr/local/bin:${PATH}"
-
-CMD ["bash"]
+FROM amazon/aws-cli
+RUN  aws-linux-extras install docker
+RUN yum install -y jq
