@@ -1,9 +1,12 @@
 pipeline {
     agent any
 
-    stages {
+    environment {
+        AWS_DOCKER_REGISTRY = '250585565193.dkr.ecr.ap-south-1.amazonaws.com'
+    }
 
-        stage('Build Docker images') {
+    stages {
+        stage('Build and Push Custom Agent Images') {
             agent {
                 docker {
                     image 'docker:latest'
@@ -12,8 +15,22 @@ pipeline {
                 }
             }
             steps {
-                sh 'docker build -f ci/Dockerfile-playwright -t my-playwright .'
-                sh 'docker build -f ci/Dockerfile-aws-cli -t my-aws-cli .'
+                withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh '''
+                        set -x
+                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                        
+                        aws ecr describe-repositories --repository-names my-aws-cli > /dev/null 2>&1 || aws ecr create-repository --repository-name my-aws-cli > /dev/null
+                        docker build -f ci/Dockerfile-aws-cli -t my-aws-cli:latest .
+                        docker tag my-aws-cli:latest $AWS_DOCKER_REGISTRY/my-aws-cli:latest
+                        docker push $AWS_DOCKER_REGISTRY/my-aws-cli:latest
+
+                        aws ecr describe-repositories --repository-names my-playwright > /dev/null 2>&1 || aws ecr create-repository --repository-name my-playwright > /dev/null
+                        docker build -f ci/Dockerfile-playwright -t my-playwright:latest .
+                        docker tag my-playwright:latest $AWS_DOCKER_REGISTRY/my-playwright:latest
+                        docker push $AWS_DOCKER_REGISTRY/my-playwright:latest
+                    '''
+                }
             }
         }
     }
