@@ -10,25 +10,10 @@ pipeline {
         AWS_ECS_CLUSTER = 'worldly-horse-w32odu'
         AWS_ECS_SERVICE = 'LearnJenkinsApp-Service-Prod'
         AWS_ECS_TD = 'LearnJenkinsApp-Prod'
+        AWS_DOCKER_REGISTRY = '250585565193.dkr.ecr.ap-south-1.amazonaws.com'
     }
 
     stages {
-
- stage('Build Custom Docker Images') 
- { 
-            agent {
-                docker {
-                    image 'docker:latest'
-                    reuseNode true
-                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
-            steps {
-                sh 'docker build -f ci/Dockerfile-playwright -t my-playwright .' 
-                sh 'docker build -f ci/Dockerfile-aws-cli -t my-aws-cli .'   
-            }
-        }
-
 
         stage('Build') {
             agent {
@@ -49,7 +34,7 @@ pipeline {
             }
         }
 
-       stage('Use Built Docker Image') 
+       stage('Built Docker Image') 
        {
         agent 
         {
@@ -64,7 +49,9 @@ pipeline {
         steps 
             {
              sh '''
-                docker build -t $APP_NAME:$REACT_APP_VERSION .
+                docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION .
+                aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
             '''
             }
     }
