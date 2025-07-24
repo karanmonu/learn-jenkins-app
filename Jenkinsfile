@@ -33,24 +33,25 @@ pipeline {
             }
         }
 
-        stage('Building Docker Image') 
+       stage('Use Built Docker Image') 
+       {
+        agent 
         {
-             agent
-                {
-                    docker
-                    {
-                        image 'my-aws-cli'
-                        reuseNode true
-                        args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
-                    }
-                }
-                steps 
-                {
-                 sh '''
-                 docker build -t $APP_NAME:$REACT_APP_VERSION .
-                 '''
-                }
+            docker 
+            {
+            image 'my-aws-cli'
+            reuseNode true
+            args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
+            }
         }
+
+        steps 
+            {
+             sh '''
+                docker build -t $APP_NAME:$REACT_APP_VERSION .
+            '''
+            }
+    }
 
         stage('Deploy to AWS')
             {
