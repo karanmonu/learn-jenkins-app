@@ -59,21 +59,39 @@ pipeline {
             }
         }
 
-        stage('Deploy to AWS') {
+        stage('Deploy to AWS ECS') {
             agent {
                 docker {
-                    image "${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest"
+                    image 'my-aws-cli'
                     reuseNode true
                     args '-u root --entrypoint=""'
                 }
             }
+
             steps {
                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
                         aws --version
-                        LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
+
+                        IMAGE_URL="$AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION"
+                        echo "Deploying image: $IMAGE_URL"
+                        
+                        # Use jq to create a new task definition JSON in a variable.
+                        # This command reads the original file, updates the 'image' property for the
+                        # 'learnjenkinsapp' container, and stores the new JSON in the NEW_TD_JSON variable.
+                        NEW_TD_JSON=$(jq --arg IMAGE "$IMAGE_URL" '.containerDefinitions |= map(if .name == "learnjenkinsapp" then .image = $IMAGE else . end)' aws/task-definition-prod.json)
+
+                        echo "Registering new task definition..."
+                        # Register the new task definition directly from the JSON variable we just created.
+                        LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json "$NEW_TD_JSON" | jq '.taskDefinition.revision')
+                        
+                        echo "New task definition revision: $LATEST_TD_REVISION"
+                        echo "Updating ECS service..."
                         aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION
+                        
+                        echo "Waiting for service to become stable..."
                         aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE
+                        echo "✅ Service deployment complete and stable."
                     '''
                 }
             }
