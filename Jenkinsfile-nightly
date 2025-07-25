@@ -17,17 +17,12 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
-                        # Install the AWS CLI into the agent container
                         apk add --no-cache aws-cli
 
-                        # Enable verbose debug output
                         set -x
 
-                        # Now that the 'aws' command exists, log in to ECR
                         aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
                         
-                        # Create repos, build, tag, and push images
-                        # ADDED --region flag to all aws commands
                         aws ecr describe-repositories --repository-names my-aws-cli --region ap-south-1 > /dev/null 2>&1 || aws ecr create-repository --repository-name my-aws-cli --region ap-south-1 > /dev/null
                         docker build -f ci/Dockerfile-aws-cli -t my-aws-cli:latest .
                         docker tag my-aws-cli:latest $AWS_DOCKER_REGISTRY/my-aws-cli:latest
