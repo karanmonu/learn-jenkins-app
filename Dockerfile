@@ -11,4 +11,4 @@ FROM nginx:1.27-alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "echo '--- Listing Nginx config directory ---'; ls -l /etc/nginx/conf.d/; echo '--- Contents of default.conf ---'; cat /etc/nginx/conf.d/default.conf; echo '--- Container will now sleep ---'; sleep 300"]
