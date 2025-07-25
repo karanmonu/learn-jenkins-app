@@ -5,7 +5,7 @@ pipeline {
         NETLIFY_SITE_ID = '446782d0-a28a-461b-8276-49bf24d90fa9'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
         REACT_APP_VERSION = "1.0.$BUILD_ID"
-        APP_NAME = 'learnjenkinsapp'
+        APP_NAME = 'LearnJenkinsApp'
         AWS_DEFAULT_REGION = 'ap-south-1'
         AWS_ECS_CLUSTER = 'worldly-horse-w32odu'
         AWS_ECS_SERVICE = 'LearnJenkinsApp-Service-Prod'
@@ -37,18 +37,18 @@ pipeline {
         stage('Built Docker Image') {
             agent {
                 docker {
-                    image 'docker:latest'
+                    image 'my-aws-cli'
                     reuseNode true
-                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
+                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
                 }
             }
+
             steps {
                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
-                        apk add --no-cache aws-cli
-                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
-                        docker build --no-cache -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION -t $AWS_DOCKER_REGISTRY/$APP_NAME:latest .
-                        docker push $AWS_DOCKER_REGISTRY/$APP_NAME --all-tags
+                        docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION .
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
+                        docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
                     '''
                 }
             }
@@ -57,18 +57,22 @@ pipeline {
         stage('Deploy to AWS') {
             agent {
                 docker {
-                    // Use the official, public AWS CLI image
-                    image 'amazon/aws-cli:latest'
+                    image 'my-aws-cli'
                     reuseNode true
-                    args '-u root'
+                    args '-u root --entrypoint=""'
                 }
             }
+
+            environment {
+                AWS_S3_BUCKET = 'learn-jenkins-20250723'
+            }
+
             steps {
                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
                         aws --version
                         LATEST_TD_REVISION=$(aws ecs register-task-definition --cli-input-json file://aws/task-definition-prod.json | jq '.taskDefinition.revision')
-                        aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION --force-new-deployment
+                        aws ecs update-service --cluster $AWS_ECS_CLUSTER --service $AWS_ECS_SERVICE --task-definition $AWS_ECS_TD:$LATEST_TD_REVISION
                         aws ecs wait services-stable --cluster $AWS_ECS_CLUSTER --services $AWS_ECS_SERVICE
                     '''
                 }
@@ -84,8 +88,11 @@ pipeline {
                             reuseNode true
                         }
                     }
+
                     steps {
-                        sh 'npm test'
+                        sh '''
+                            npm test
+                        '''
                     }
                     post {
                         always {
@@ -97,11 +104,11 @@ pipeline {
                 stage('E2E') {
                     agent {
                         docker {
-                            // Use the official, public Playwright image
-                            image 'mcr.microsoft.com/playwright:v1.44.0-jammy'
+                            image 'my-playwright'
                             reuseNode true
                         }
                     }
+
                     steps {
                         sh '''
                             serve -s build &
@@ -109,6 +116,7 @@ pipeline {
                             npx playwright test --reporter=html
                         '''
                     }
+
                     post {
                         always {
                             publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Local E2E', reportTitles: '', useWrapperFileDirectly: true])
@@ -121,11 +129,15 @@ pipeline {
         stage('Deploy staging') {
             agent {
                 docker {
-                    // Use the official, public Playwright image
-                    image 'mcr.microsoft.com/playwright:v1.44.0-jammy'
+                    image 'my-playwright'
                     reuseNode true
                 }
             }
+
+            environment {
+                CI_ENVIRONMENT_URL = 'STAGING_URL_TO_BE_SET'
+            }
+
             steps {
                 sh '''
                     netlify --version
@@ -137,6 +149,7 @@ pipeline {
                     CI_ENVIRONMENT_URL="$CI_ENVIRONMENT_URL" npx playwright test --reporter=html
                 '''
             }
+
             post {
                 always {
                     publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Staging E2E', reportTitles: '', useWrapperFileDirectly: true])
@@ -147,11 +160,15 @@ pipeline {
         stage('Deploy prod') {
             agent {
                 docker {
-                    // Use the official, public Playwright image
-                    image 'mcr.microsoft.com/playwright:v1.44.0-jammy'
+                    image 'my-playwright'
                     reuseNode true
                 }
             }
+
+            environment {
+                CI_ENVIRONMENT_URL = 'YOUR_NETLIFY_SITE_URL'
+            }
+
             steps {
                 sh '''
                     node --version
@@ -163,6 +180,7 @@ pipeline {
                     CI_ENVIRONMENT_URL="$CI_ENVIRONMENT_URL" npx playwright test --reporter=html
                 '''
             }
+
             post {
                 always {
                     publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Prod E2E', reportTitles: '', useWrapperFileDirectly: true])
