@@ -25,6 +25,11 @@ FROM nginx:1.27-alpine
 # Copy the static files from the 'builder' stage to the Nginx public directory
 COPY --from=builder /app/build /usr/share/nginx/html
 
+# --- DEBUGGING STEP ---
+# List the files in the Nginx directory to verify the copy worked.
+# This will be visible in the Jenkins build log.
+RUN ls -laR /usr/share/nginx/html
+
 # Expose port 80 to the outside world
 EXPOSE 80
 
