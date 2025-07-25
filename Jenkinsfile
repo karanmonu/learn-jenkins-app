@@ -34,26 +34,21 @@ pipeline {
             }
         }
 
-        stage('Built Docker Image') {
+      stage('Build Docker Image') {
             agent {
                 docker {
-                    image "${env.AWS_DOCKER_REGISTRY}/my-aws-cli:latest"
+                    image 'my-aws-cli'
                     reuseNode true
                     args '-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=""'
                 }
             }
+
             steps {
                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
-                        # Explicitly log in to ECR first. This is the key fix.
-                        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
-                        
-                        # Build the image with two tags at once
-                        docker build -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION -t $AWS_DOCKER_REGISTRY/$APP_NAME:latest .
-                        
-                        # Push both tags to the registry
+                        docker build --no-cache -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION .
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
                         docker push $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION
-                        docker push $AWS_DOCKER_REGISTRY/$APP_NAME:latest
                     '''
                 }
             }
