@@ -37,7 +37,6 @@ pipeline {
         stage('Built Docker Image') {
             agent {
                 docker {
-                    // Use a public image that has Docker, and we will install AWS CLI
                     image 'docker:latest'
                     reuseNode true
                     args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
@@ -46,10 +45,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'my-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
                     sh '''
-                        # Install AWS CLI into the agent
                         apk add --no-cache aws-cli
-
-                        # Now log in, build, and push
                         aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $AWS_DOCKER_REGISTRY
                         docker build --no-cache -t $AWS_DOCKER_REGISTRY/$APP_NAME:$REACT_APP_VERSION -t $AWS_DOCKER_REGISTRY/$APP_NAME:latest .
                         docker push $AWS_DOCKER_REGISTRY/$APP_NAME --all-tags
